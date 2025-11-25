@@ -42,8 +42,8 @@ export default function CitySummaryModal({
   const [audioLoading, setAudioLoading] = useState(false)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [audioPlaying, setAudioPlaying] = useState(false)
+  const audioRef = React.useRef<HTMLAudioElement | null>(null)
 
-  // Fetch summary when modal opens or city changes
   React.useEffect(() => {
     if (open && city && !summaryData) {
       fetchCitySummary()
@@ -52,6 +52,13 @@ export default function CitySummaryModal({
       // Reset state when modal closes
       setSummaryData(null)
       setError(null)
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl)
+      }
       setAudioUrl(null)
       setAudioPlaying(false)
     }
@@ -113,13 +120,39 @@ export default function CitySummaryModal({
       const url = URL.createObjectURL(audioBlob)
       setAudioUrl(url)
       
+      // Create and configure audio element
+      const audio = new Audio(url)
+      audioRef.current = audio
+      
+      audio.onended = () => {
+        setAudioPlaying(false)
+      }
+      
+      audio.onerror = () => {
+        setError('Failed to play audio')
+        setAudioPlaying(false)
+      }
+      
       // Auto-play the audio
-      playAudio(url)
+      audio.play()
+      setAudioPlaying(true)
     } catch (err) {
       console.error('Error generating audio:', err)
       setError(err instanceof Error ? err.message : 'Failed to generate audio')
     } finally {
       setAudioLoading(false)
+    }
+  }
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return
+
+    if (audioPlaying) {
+      audioRef.current.pause()
+      setAudioPlaying(false)
+    } else {
+      audioRef.current.play()
+      setAudioPlaying(true)
     }
   }
 
@@ -281,35 +314,103 @@ export default function CitySummaryModal({
                 </p>
               </div>
 
-              {/* Audio Generation Button */}
-              <div className="flex gap-3">
-                <button
-                  onClick={generateAudio}
-                  disabled={audioLoading || audioPlaying}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 shadow-lg"
-                >
-                  {audioLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Generating Audio...</span>
-                    </>
-                  ) : audioPlaying ? (
-                    <>
-                      <span className="text-xl">🔊</span>
-                      <span>Playing...</span>
-                    </>
-                  ) : audioUrl ? (
-                    <>
-                      <span className="text-xl">🔊</span>
-                      <span>Play Again</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-xl">🎙️</span>
-                      <span>Generate Audio Summary</span>
-                    </>
-                  )}
-                </button>
+              {/* Audio Generation and Controls */}
+              <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 rounded-lg p-5 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xl">🎙️</span>
+                  <h4 className="font-semibold text-purple-300">Voice Narration</h4>
+                </div>
+                
+                {!audioUrl && !audioLoading && (
+                  <button
+                    onClick={generateAudio}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    <span className="text-xl">🎙️</span>
+                    <span>Generate Audio Summary</span>
+                  </button>
+                )}
+
+                {audioLoading && (
+                  <div className="flex flex-col items-center justify-center py-8 gap-3">
+                    <div className="w-10 h-10 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                    <p className="text-purple-300">Synthesizing voice with ElevenLabs...</p>
+                  </div>
+                )}
+
+                {audioUrl && !audioLoading && (
+                  <div className="space-y-4">
+                    {/* Play/Pause Control */}
+                    <div className="flex items-center justify-center gap-6">
+                      <button
+                        onClick={togglePlayPause}
+                        className="group relative bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full p-6 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                        aria-label={audioPlaying ? 'Pause' : 'Play'}
+                      >
+                        {audioPlaying ? (
+                          // Pause Icon
+                          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                          </svg>
+                        ) : (
+                          // Play Icon
+                          <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        )}
+                        
+                        {/* Ripple effect when playing */}
+                        {audioPlaying && (
+                          <span className="absolute inset-0 rounded-full bg-purple-500/30 animate-ping"></span>
+                        )}
+                      </button>
+
+                      <div className="text-center">
+                        <p className="text-white font-medium">
+                          {audioPlaying ? '🔊 Now Playing' : '⏸️ Paused'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          ElevenLabs AI Voice
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Waveform Visualization (when playing) */}
+                    {audioPlaying && (
+                      <div className="flex items-center justify-center gap-1 h-16 bg-black/20 rounded-lg p-2">
+                        {[...Array(24)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="flex-1 bg-gradient-to-t from-purple-500 to-pink-500 rounded-full animate-pulse"
+                            style={{
+                              height: `${Math.random() * 60 + 20}%`,
+                              animationDelay: `${i * 0.05}s`,
+                              animationDuration: `${0.6 + Math.random() * 0.4}s`
+                            }}
+                          ></div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Regenerate Button */}
+                    <button
+                      onClick={() => {
+                        if (audioRef.current) {
+                          audioRef.current.pause()
+                          audioRef.current = null
+                        }
+                        if (audioUrl) {
+                          URL.revokeObjectURL(audioUrl)
+                        }
+                        setAudioUrl(null)
+                        setAudioPlaying(false)
+                      }}
+                      className="w-full bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                    >
+                      Generate New Audio
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Sample Posts */}
