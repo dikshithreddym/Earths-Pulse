@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import random
 import asyncio
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
@@ -20,6 +21,7 @@ class SocialMediaFetcher:
     def __init__(self):
         self.reddit_client = None
         self.twitter_client = None
+        self.executor = ThreadPoolExecutor(max_workers=5)  # Add executor
         self._initialize_clients()
     
     def _initialize_clients(self):
@@ -108,13 +110,19 @@ class SocialMediaFetcher:
                 found_count = 0
 
                 try:
-                    # Search Reddit for this city
-                    for submission in self.reddit_client.subreddit("all").search(
-                        query=query,
-                        limit=max(5, per_city * 2),  # Fetch more to filter
-                        sort="new",
-                        time_filter="day",
-                    ):
+                    # Run PRAW call in thread pool to avoid warnings
+                    loop = asyncio.get_event_loop()
+                    submissions = await loop.run_in_executor(
+                        self.executor,
+                        lambda: list(self.reddit_client.subreddit("all").search(
+                            query=query,
+                            limit=max(5, per_city * 2),
+                            sort="new",
+                            time_filter="day",
+                        ))
+                    )
+                    
+                    for submission in submissions:
                         text = submission.title
                         if hasattr(submission, 'selftext') and submission.selftext:
                             text += " " + (submission.selftext or "")

@@ -39,8 +39,7 @@ load_dotenv()
 app = FastAPI(
     title="Earth's Pulse API",
     description="Real-time emotional sentiment analysis from social media",
-    version="1.0.0"
-)
+    version="1.0.0")
 
 # CORS middleware to allow frontend requests
 app.add_middleware(
@@ -81,7 +80,7 @@ async def startup_event():
     # Start background refresh task (Reddit-only, city-specific) if enabled
     try:
         enable_bg = os.getenv("ENABLE_BACKGROUND_REFRESH", "true").lower() == "true"
-        interval_min = int(os.getenv("REFRESH_INTERVAL_MINUTES", "5"))
+        interval_min = int(os.getenv("REFRESH_INTERVAL_MINUTES", "60"))
         if enable_bg and interval_min > 0:
             async def _background_refresh_loop():
                 while True:
@@ -167,8 +166,7 @@ async def get_moods(
     min_score: Optional[float] = None,
     max_score: Optional[float] = None,
     only_city: Optional[bool] = False,
-    unique_per_city: Optional[bool] = False
-):
+    unique_per_city: Optional[bool] = False):
     """
     Get mood data points from database
     
@@ -295,8 +293,7 @@ async def get_summary():
 async def get_summary_audio(
     format: Optional[str] = "base64",
     voice_id: Optional[str] = None,
-    model: Optional[str] = None
-):
+    model: Optional[str] = None):
     """
     Convert the AI-generated summary to speech using ElevenLabs.
 
@@ -483,8 +480,7 @@ def _clean_openrouter_text(txt: str) -> str:
 @app.get("/api/openrouter/test")
 async def openrouter_test(
     prompt: Optional[str] = "Say 'pong'.",
-    model: Optional[str] = None
-):
+    model: Optional[str] = None):
     key = os.getenv("OPENROUTER_API_KEY")
     if not key:
         raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY not set")
@@ -730,8 +726,7 @@ async def get_city_summary_audio(
     limit: int = 50,
     format: Optional[str] = "base64",
     voice_id: Optional[str] = None,
-    model: Optional[str] = None
-):
+    model: Optional[str] = None):
     """
     Generate audio narration of the city summary using ElevenLabs.
     
