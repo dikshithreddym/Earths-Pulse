@@ -38,6 +38,14 @@ class DatabaseService:
     
     async def connect(self):
         """Connect to MongoDB"""
+        # Log which MongoDB URI is being used and whether it's local or cloud
+        if self.mongodb_uri.startswith("mongodb://localhost"):
+            print(f"🌐 Attempting to connect to LOCAL MongoDB at: {self.mongodb_uri}")
+        elif self.mongodb_uri.startswith("mongodb+srv://"):
+            print(f"☁️ Attempting to connect to CLOUD MongoDB Atlas at: {self.mongodb_uri}")
+        else:
+            print(f"🌐 Attempting to connect to MongoDB at: {self.mongodb_uri}")
+
         try:
             self.client = AsyncIOMotorClient(self.mongodb_uri)
             self.db = self.client[self.db_name]
